@@ -8,13 +8,27 @@ namespace ComPortBridge
     class Program
     {
         static SerialPort serialPortIn;
-        static SerialPort serialPortOut;
+        static SerialPort[] serialPortOut;
         private static bool isRun;
+        static int portNum = 0;
 
         static void Main(string[] args)
         {
             Console.WriteLine("Привет");
             string[] portNames = SerialPort.GetPortNames();
+            portNum = portNames.Length - 1;
+            while (portNum <= 0)
+            {
+                Console.WriteLine("Порты не обнаружены, попробывать еще раз?");
+                Console.ReadLine();
+                portNames = SerialPort.GetPortNames();
+                portNum = portNames.Length - 1;
+            }
+            if (portNum > 3)
+            {
+                portNum = 3;
+            }
+            serialPortOut = new SerialPort[portNum];
             Console.WriteLine("\nВведите имя входного порта");
             int ind = -1;
             string portIn = string.Empty;
@@ -32,19 +46,28 @@ namespace ComPortBridge
                 }
             }
 
-            Console.WriteLine("\nВведите имя выходного порта");
-            string portOut = string.Empty;
-            while (true)
+            string[] portOut = new string[portNum];
+            for (int i = 0; i < portNum; i++)
             {
-                portOut = Console.ReadLine().ToUpper();
-                ind = Array.FindIndex(portNames, name => name == portIn);
-                if (ind == -1)
+                Console.WriteLine($"\nВведите имя выходного порта №{i + 1}");
+                while (true)
                 {
-                    Console.WriteLine("порт не найден, попробуйте ввести еще раз");
-                }
-                else
-                {
-                    break;
+                    string name = Console.ReadLine().ToUpper();
+                    ind = Array.FindIndex(portNames, t => t == name);
+                    if (ind == -1)
+                    {
+                        Console.WriteLine("порт не найден, попробуйте ввести еще раз");
+                    }
+                    else if (Array.FindIndex(portOut, t => t == name) != -1 || name == portIn)
+                    {
+                        Console.WriteLine("порт уже используется, попробуйте ввести еще раз");
+                    }
+                    else
+                    {
+                        portOut[i] = name;
+                        break;
+                        
+                    }
                 }
             }
 
@@ -76,16 +99,13 @@ namespace ComPortBridge
                 ReadTimeout = 2000,
                 WriteTimeout = 2000
             };
-            if (portIn == portOut)
+
+            for (int i = 0; i < portNum; i++)
             {
-                serialPortOut = serialPortIn;
-            }
-            else
-            {
-                serialPortOut = new()
+                serialPortOut[i] = new()
                 {
                     BaudRate = 115200,
-                    PortName = portOut,
+                    PortName = portOut[i],
                     StopBits = stopBits,
                     ReadTimeout = 2000,
                     WriteTimeout = 2000
@@ -96,10 +116,11 @@ namespace ComPortBridge
             Console.ReadLine();
 
         run:
-            var task = Task.Run(() => ReadProcess());
+            Task.Run(() => ReadProcess());
             Console.ReadLine();
             isRun = false;
-            task.Wait();
+            Console.WriteLine("Перезапуск......");
+            Thread.Sleep(2000);
             goto run;
         }
 
@@ -111,24 +132,36 @@ namespace ComPortBridge
             {
                 serialPortIn.Open();
             }
-            if (serialPortOut.IsOpen == false)
-            {
-                serialPortOut.Open();
-            }
             serialPortIn.DiscardInBuffer();
-            serialPortOut.DiscardInBuffer();
+            for (int i = 0; i < portNum; i++)
+            {
+                if (serialPortOut[i].IsOpen == false)
+                {
+                    serialPortOut[i].Open();
+                }
+                serialPortOut[i].DiscardInBuffer();
+            }
+
+
             while (isRun)
             {
                 if (ReadBuf(ref buf, 26))
                 {
-                    serialPortOut.Write(buf, 0, 26);
+                    for (int i = 0; i < portNum; i++)
+                    {
+                        serialPortOut[i].Write(buf, 0, 26);
+                    }
                     string str = BitConverter.ToString(buf);
                     Console.WriteLine(str);
                 }
                 Thread.Sleep(5);
             }
             serialPortIn.Close();
-            serialPortOut.Close();
+
+            for (int i = 0; i < portNum; i++)
+            {
+                serialPortOut[i].Close();
+            }
         }
 
         internal static bool ReadBuf(ref byte[] buf, int len)
