@@ -50,25 +50,25 @@ namespace ComPortBridge
             for (int i = 0; i < portNum; i++)
             {
                 Console.WriteLine($"\nВведите имя выходного порта №{i + 1}");
-                while (true)
-                {
+            while (true)
+            {
                     string name = Console.ReadLine().ToUpper();
                     ind = Array.FindIndex(portNames, t => t == name);
-                    if (ind == -1)
-                    {
-                        Console.WriteLine("порт не найден, попробуйте ввести еще раз");
-                    }
+                if (ind == -1)
+                {
+                    Console.WriteLine("порт не найден, попробуйте ввести еще раз");
+                }
                     else if (Array.FindIndex(portOut, t => t == name) != -1 || name == portIn)
                     {
                         Console.WriteLine("порт уже используется, попробуйте ввести еще раз");
                     }
-                    else
-                    {
+                else
+                {
                         portOut[i] = name;
-                        break;
+                    break;
                         
-                    }
                 }
+            }
             }
 
             Console.WriteLine("\nВведите количество стоп бит");
@@ -136,7 +136,7 @@ namespace ComPortBridge
             for (int i = 0; i < portNum; i++)
             {
                 if (serialPortOut[i].IsOpen == false)
-                {
+            {
                     serialPortOut[i].Open();
                 }
                 serialPortOut[i].DiscardInBuffer();
@@ -153,6 +153,7 @@ namespace ComPortBridge
                     }
                     string str = BitConverter.ToString(buf);
                     Console.WriteLine(str);
+                    serialPortOut.Write(buf, 0, 26);
                 }
                 Thread.Sleep(5);
             }
